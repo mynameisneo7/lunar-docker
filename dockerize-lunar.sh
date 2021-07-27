@@ -75,12 +75,11 @@ EOF
 }
 
 transfer_package() {
-  echo "Transfering $1..."
+  printf "${C_CLN}Transfering %s..." "$1"
   cd $TARGET                          &&
   LINE=$(grep "^$1:" $PACKAGES_LIST)  &&
   MOD=$(echo $LINE | cut -d: -f1)     &&
   VER=$(echo $LINE | cut -d: -f4)     &&
-  #cp "$ROOTFS"/var/cache/lunar/$MOD-$VER-*.tar.xz $TARGET/var/cache/lunar/   &&
   tar xJf "$ROOTFS"/var/cache/lunar/$MOD-$VER-*.tar.xz 2> /dev/null           &&
   echo $LINE >> $TARGET/var/state/lunar/packages                              &&
   cp $TARGET/var/state/lunar/packages $TARGET/var/state/lunar/packages.backup
@@ -173,6 +172,7 @@ main() {
     SIZ=$(echo $LINE | cut -d: -f5)
     transfer_package $MOD
   done
+  printf "${C_CLN}"
 
   DATE=$(date +%Y%m%d)
 
@@ -273,16 +273,16 @@ EOF
 
   docker images | grep -F "${IMAGE_NAME}"
 
-  echo -n "Cleaning up..."
+  printf "Cleaning up..."
   cleanup
   echo "done."
 }
 
 # colors, disabled if not on a terminal
 if [[ -t 1 ]]; then
-  export C_BLD=$'\e[1m' C_RED=$'\e[31m' C_OFF=$'\e[0m'
+  export C_BLD=$'\e[1m' C_RED=$'\e[31m' C_OFF=$'\e[0m' C_CLN=$'\e[0E\e[K'
 else
-  export C_BLD='' C_RED='' C_OFF=''
+  export C_BLD='' C_RED='' C_OFF='' C_CLN=''
 fi
 
 BASENAME=`basename "$0"`
