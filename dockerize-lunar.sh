@@ -26,8 +26,8 @@ ${C_BLD}Must be run as root.${C_OFF}
 
   -r, --remote=HOST/REPO  Tag image for remote repository. Please provide full
                           host, path, and image name. Tags will also be applied.
-                          NOTE: Authorization is not handled for you.
   -p, --push              Initiate docker push after image is built.
+                          NOTE: Authentication is not handled for you.
 
   -t, --tag=STRING        Docker tag to build. (Default: latest)
   -e, --extratag=STRING   Tag the new image with an additional tag.
@@ -254,6 +254,7 @@ EOF
   # remote repository
   if [[ -n "$REMOTE" ]]; then
     echo "Tagging remote image(s)..."
+    docker tag "${IMAGE_NAME}:${VERSION}" "${REMOTE}:${VERSION}"
     docker tag "${IMAGE_NAME}:${VERSION}" "${REMOTE}:${TAG}"
 
     if [[ -n "$EXTRATAG" ]]; then
@@ -263,10 +264,10 @@ EOF
     # push to repo
     if [[ "$PUSH" -eq 1 ]]; then
       echo "Pushing image(s)..."
-      docker push "${IMAGE_NAME}:${TAG}"
+      docker push "${REMOTE}:${TAG}"
 
       if [[ -n "$EXTRATAG" ]]; then
-        docker push "${IMAGE_NAME}:${EXTRATAG}"
+        docker push "${REMOTE}:${EXTRATAG}"
       fi
     fi
   fi
@@ -286,7 +287,7 @@ else
 fi
 
 BASENAME=`basename "$0"`
-GETOPT_ARGS=$(getopt -q -n $BASENAME -o "e:hi:n:pr:s:t:T:v" -l "extratag:,help,iso:,name:,push,remote:,suffix:,stop-iso,targetdir:,version" -- "$@")
+GETOPT_ARGS=$(getopt -n $BASENAME -o "e:hi:n:pr:s:t:T:v" -l "extratag:,help,iso:,name:,push,remote:,suffix:,stop-iso,targetdir:,version" -- "$@")
 
 if [[ -z "$?" ]]; then
   version
@@ -309,14 +310,14 @@ else
       -e|--extratag)  EXTRATAG=$2; shift 2 ;;
       -i|--iso)       LUNAR_ISO=$2; shift 2 ;;
       -n|--name)      IMAGE_NAME=$2; shift 2 ;;
-      -N|--no-arch)   ARCH=0; shift 1 ;;
-      -p|--push)      PUSH=1; shift 2 ;;
+      -N|--no-arch)   ARCH=0; shift ;;
+      -p|--push)      PUSH=1; shift ;;
       -r|--remote)    REMOTE=$2; shift 2 ;;
       -s|--suffix)    IMAGE_SUFFIX=$2; shift 2 ;;
       -T|--targetdir) TARGET=$2; shift 2 ;;
       -t|--tag)       TAG=$2; shift 2 ;;
 
-      --stop-iso)     STOP_ISO_TARGET=1; shift 1 ;;
+      --stop-iso)     STOP_ISO_TARGET=1; shift ;;
 
       -v|--version)   version; exit 1 ;;
       -h|--help)      help; exit 1 ;;
