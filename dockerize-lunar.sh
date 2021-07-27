@@ -248,7 +248,7 @@ else
 fi
 
 BASENAME=`basename "$0"`
-GETOPT_ARGS=$(getopt -q -n $BASENAME -o "i:t:e:n:s:" -l "iso:,targetdir:,extratag:,name:,suffix:,stop-iso" -- "$@")
+GETOPT_ARGS=$(getopt -q -n $BASENAME -o "e:hi:n:s:t:T:v" -l "extratag:,help,iso:,name:,suffix:,stop-iso,targetdir:,version" -- "$@")
 
 if [[ -z "$?" ]]; then
   version
