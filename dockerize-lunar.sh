@@ -16,10 +16,18 @@ help() {
   cat << EOF
 
 Build a docker image using a Lunar-Linux ISO. By default, will create an image
-named "lunar-linux" with the "latest" tag. ${C_BLD}Must be run as root.${C_OFF}
+named "lunar-linux-<arch>" with the "latest" and ISO version tags. Optionally
+tag and push to a remote repository.
+
+${C_BLD}Must be run as root.${C_OFF}
 
   -i, --iso=FILE          Required. Lunar-Linux ISO to use.
   -n, --name=STRING       Name of the image to build. (Default: lunar-linux)
+
+  -r, --remote=HOST/REPO  Tag image for remote repository. Please provide full
+                          host, path, and image name. Tags will also be applied.
+                          NOTE: Authorization is not handled for you.
+  -p, --push              Initiate docker push after image is built.
 
   -t, --tag=STRING        Docker tag to build. (Default: latest)
   -e, --extratag=STRING   Tag the new image with an additional tag.
@@ -35,8 +43,8 @@ EOF
 }
 
 error() {
-  MSG="$1"; shift
-  printf "error: $MSG" "$@" >&2
+  MSG="ERROR: $1\n"; shift
+  printf "$MSG" "$@" >&2
   exit 1
 }
 
@@ -99,7 +107,6 @@ main() {
   export TARGET=${TARGET:-$(mktemp -d /tmp/lunar-docker.XXXXXX)}
   PACKAGES_LIST="$ROOTFS"/var/cache/lunar/packages
   MOONBASE_TAR="$ROOTFS"/usr/share/lunar-install/moonbase.tar.bz2
-
 
   if ! mount -o ro,loop $LUNAR_ISO $ISOMNT; then
     error "Failed to mount ISO: %s" "$LUNAR_ISO"
@@ -220,21 +227,47 @@ EOF
   rm -f $TARGET/etc/systemd/system/sockets.target.wants/sshd.socket
 
   # root user skel files
-  find $TARGET/etc/skel ! -type d | xargs -i cp '{}' $TARGET/root
+  find $TARGET/etc/skel ! -type d -print0 | xargs -0i cp '{}' $TARGET/root
 
   # Create docker image based on $TARGET
   cd $TARGET
   . etc/lsb-release
 
-  echo "Importing docker image from ISO (${DISTRIB_RELEASE%-*})..."
-  tar -c . | docker import - "${IMAGE_NAME}${IMAGE_SUFFIX}:${DISTRIB_RELEASE%-*}"
+  [[ "$ARCH" -eq 1 ]] && ARCH="-${DISTRIB_RELEASE##*-}" || ARCH=""
+  VERSION="${DISTRIB_RELEASE%-*}"
+  VERSIOM="${VERSION/_/-}"
 
+  echo "Importing docker image (${VERSION})..."
+  tar -c . | docker import - "${IMAGE_NAME}${IMAGE_SUFFIX}:${VERSION}"
+
+  # tag latest
   echo "Tagging image (${TAG})..."
-  docker tag "${IMAGE_NAME}${IMAGE_SUFFIX}:${DISTRIB_RELEASE%-*}" "${IMAGE_NAME}${IMAGE_SUFFIX}:${TAG}"
+  docker tag "${IMAGE_NAME}${ARCH}${IMAGE_SUFFIX}:${VERSION}" "${IMAGE_NAME}${ARCH}${IMAGE_SUFFIX}:${TAG}"
 
+  # extra tag
   if [[ -n "$EXTRATAG" ]]; then
     echo "Tagging image (${EXTRATAG})..."
-    docker tag "${IMAGE_NAME}${IMAGE_SUFFIX}:${DISTRIB_RELEASE%-*}" "${IMAGE_NAME}${IMAGE_SUFFIX}:${EXTRATAG}"
+    docker tag "${IMAGE_NAME}${ARCH}${IMAGE_SUFFIX}:${VERSION}" "${IMAGE_NAME}${ARCH}${IMAGE_SUFFIX}:${EXTRATAG}"
+  fi
+
+  # remote repository
+  if [[ -n "$REMOTE" ]]; then
+    echo "Tagging remote image(s)..."
+    docker tag "${IMAGE_NAME}${ARCH}${IMAGE_SUFFIX}:${VERSION}" "${REMOTE}:${TAG}"
+
+    if [[ -n "$EXTRATAG" ]]; then
+      docker tag "${IMAGE_NAME}${ARCH}${IMAGE_SUFFIX}:${VERSION}" "${REMOTE}:${EXTRATAG}"
+    fi
+
+    # push to repo
+    if [[ "$PUSH" -eq 1 ]]; then
+      echo "Pushing image(s)..."
+      docker push "${IMAGE_NAME}${ARCH}${IMAGE_SUFFIX}:${TAG}"
+
+      if [[ -n "$EXTRATAG" ]]; then
+        docker push "${IMAGE_NAME}${ARCH}${IMAGE_SUFFIX}:${EXTRATAG}"
+      fi
+    fi
   fi
 
   docker images | grep -F "${IMAGE_NAME}"
@@ -244,7 +277,7 @@ EOF
   echo "done."
 }
 
-# colors
+# colors, disabled if not on a terminal
 if [[ -t 1 ]]; then
   export C_BLD=$'\e[1m' C_RED=$'\e[31m' C_OFF=$'\e[0m'
 else
@@ -252,7 +285,7 @@ else
 fi
 
 BASENAME=`basename "$0"`
-GETOPT_ARGS=$(getopt -q -n $BASENAME -o "e:hi:n:s:t:T:v" -l "extratag:,help,iso:,name:,suffix:,stop-iso,targetdir:,version" -- "$@")
+GETOPT_ARGS=$(getopt -q -n $BASENAME -o "e:hi:n:pr:s:t:T:v" -l "extratag:,help,iso:,name:,push,remote:,suffix:,stop-iso,targetdir:,version" -- "$@")
 
 if [[ -z "$?" ]]; then
   version
@@ -265,14 +298,19 @@ else
 
   eval set -- $GETOPT_ARGS
 
+  ARCH=1
   IMAGE_NAME=lunar-linux
   TAG=latest
+  PUSH=0
 
   while true; do
     case "$1" in
-      -i|--iso)       LUNAR_ISO=$2; shift 2 ;;
       -e|--extratag)  EXTRATAG=$2; shift 2 ;;
+      -i|--iso)       LUNAR_ISO=$2; shift 2 ;;
       -n|--name)      IMAGE_NAME=$2; shift 2 ;;
+      -N|--no-arch)   ARCH=0; shift 1 ;;
+      -p|--push)      PUSH=1; shift 2 ;;
+      -r|--remote)    REMOTE=$2; shift 2 ;;
       -s|--suffix)    IMAGE_SUFFIX=$2; shift 2 ;;
       -T|--targetdir) TARGET=$2; shift 2 ;;
       -t|--tag)       TAG=$2; shift 2 ;;
@@ -286,7 +324,8 @@ else
     esac
   done
 
-  export LUNAR_ISO TAG TARGET EXTRATAG IMAGE_NAME IMAGE_SUFFIX STOP_ISO_TARGET
+  export ARCH EXTRATAG IMAGE_NAME IMAGE_SUFFIX LUNAR_ISO PUSH REMOTE \
+         STOP_ISO_TARGET TAG TARGET
 
   if [[ -z "$LUNAR_ISO" ]]; then
     usage
