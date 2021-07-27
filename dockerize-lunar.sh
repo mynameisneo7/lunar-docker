@@ -235,37 +235,38 @@ EOF
 
   [[ "$ARCH" -eq 1 ]] && ARCH="-${DISTRIB_RELEASE##*-}" || ARCH=""
   VERSION="${DISTRIB_RELEASE%-*}"
-  VERSIOM="${VERSION/_/-}"
+  ARCH="${ARCH/_/-}"
+  IMAGE_NAME="${IMAGE_NAME}${ARCH}${IMAGE_SUFFIX}"
 
   echo "Importing docker image (${VERSION})..."
   tar -c . | docker import - "${IMAGE_NAME}${IMAGE_SUFFIX}:${VERSION}"
 
   # tag latest
   echo "Tagging image (${TAG})..."
-  docker tag "${IMAGE_NAME}${ARCH}${IMAGE_SUFFIX}:${VERSION}" "${IMAGE_NAME}${ARCH}${IMAGE_SUFFIX}:${TAG}"
+  docker tag "${IMAGE_NAME}:${VERSION}" "${IMAGE_NAME}:${TAG}"
 
   # extra tag
   if [[ -n "$EXTRATAG" ]]; then
     echo "Tagging image (${EXTRATAG})..."
-    docker tag "${IMAGE_NAME}${ARCH}${IMAGE_SUFFIX}:${VERSION}" "${IMAGE_NAME}${ARCH}${IMAGE_SUFFIX}:${EXTRATAG}"
+    docker tag "${IMAGE_NAME}:${VERSION}" "${IMAGE_NAME}:${EXTRATAG}"
   fi
 
   # remote repository
   if [[ -n "$REMOTE" ]]; then
     echo "Tagging remote image(s)..."
-    docker tag "${IMAGE_NAME}${ARCH}${IMAGE_SUFFIX}:${VERSION}" "${REMOTE}:${TAG}"
+    docker tag "${IMAGE_NAME}:${VERSION}" "${REMOTE}:${TAG}"
 
     if [[ -n "$EXTRATAG" ]]; then
-      docker tag "${IMAGE_NAME}${ARCH}${IMAGE_SUFFIX}:${VERSION}" "${REMOTE}:${EXTRATAG}"
+      docker tag "${IMAGE_NAME}:${VERSION}" "${REMOTE}:${EXTRATAG}"
     fi
 
     # push to repo
     if [[ "$PUSH" -eq 1 ]]; then
       echo "Pushing image(s)..."
-      docker push "${IMAGE_NAME}${ARCH}${IMAGE_SUFFIX}:${TAG}"
+      docker push "${IMAGE_NAME}:${TAG}"
 
       if [[ -n "$EXTRATAG" ]]; then
-        docker push "${IMAGE_NAME}${ARCH}${IMAGE_SUFFIX}:${EXTRATAG}"
+        docker push "${IMAGE_NAME}:${EXTRATAG}"
       fi
     fi
   fi
