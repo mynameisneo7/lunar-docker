@@ -1,9 +1,9 @@
 #!/bin/bash
 
-VERSION=0.1
+SCRIPT_VER=0.1
 
 version() {
-  printf '%s version %s\n' "$BASENAME" "$VERSION"
+  printf '%s version %s\n' "$BASENAME" "$SCRIPT_VER"
 }
 
 usage() {
@@ -84,7 +84,6 @@ transfer_package() {
   echo $LINE >> $TARGET/var/state/lunar/packages                              &&
   cp $TARGET/var/state/lunar/packages $TARGET/var/state/lunar/packages.backup
 }
-
 
 main() {
   local ISOMNT SQFSMNT PACKAGES_LIST MOONBASE_TAR
