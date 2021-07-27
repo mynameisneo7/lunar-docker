@@ -24,7 +24,7 @@ named "lunar-linux" with the "latest" tag. ${C_BLD}Must be run as root.${C_OFF}
   -t, --tag=STRING        Docker tag to build. (Default: latest)
   -e, --extratag=STRING   Tag the new image with an additional tag.
   -s, --suffix=STRING     Apply a suffix to the docker image name.
-  -t, --targetdir=PATH    Temporary working directory to build the image.
+  -T, --targetdir=PATH    Temporary working directory to build the image.
 
   --stop-iso              Unknown.
 
@@ -226,11 +226,15 @@ EOF
   cd $TARGET
   . etc/lsb-release
 
-  echo "Creating docker image..."
-  tar -c . | docker import - "${IMAGE_NAME}:${DISTRIB_RELEASE%-*}"
+  echo "Importing docker image from ISO (${DISTRIB_RELEASE%-*})..."
+  tar -c . | docker import - "${IMAGE_NAME}${IMAGE_SUFFIX}:${DISTRIB_RELEASE%-*}"
+
+  echo "Tagging image (${TAG})..."
+  docker tag "${IMAGE_NAME}${IMAGE_SUFFIX}:${DISTRIB_RELEASE%-*}" "${IMAGE_NAME}${IMAGE_SUFFIX}:${TAG}"
 
   if [[ -n "$EXTRATAG" ]]; then
-    docker tag "${IMAGE_NAME}${IMAGE_SUFFIX}:${DISTRIB_RELEASE%-*}" "${IMAGE_NAME}${IMAGE_SUFFIX}:$EXTRATAG"
+    echo "Tagging image (${EXTRATAG})..."
+    docker tag "${IMAGE_NAME}${IMAGE_SUFFIX}:${DISTRIB_RELEASE%-*}" "${IMAGE_NAME}${IMAGE_SUFFIX}:${EXTRATAG}"
   fi
 
   docker images | grep -F "${IMAGE_NAME}"
@@ -293,5 +297,6 @@ else
     error "File not found: %s" "$LUNAR_ISO"
   fi
 
+  version
   main $@
 fi
