@@ -280,7 +280,7 @@ EOF
 
 # colors, disabled if not on a terminal
 if [[ -t 1 ]]; then
-  export C_BLD=$'\e[1m' C_RED=$'\e[31m' C_OFF=$'\e[0m' C_CLN=$'\e[0E\e[K'
+  export C_BLD=$'\e[1m' C_RED=$'\e[31m' C_OFF=$'\e[0m' C_CLN=$'\e[2K\e[0G'
 else
   export C_BLD='' C_RED='' C_OFF='' C_CLN=''
 fi
